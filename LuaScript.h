@@ -65,14 +65,12 @@ struct LuaFunction<Ret(Args...)>
         {
             // get the function object from upvalue
             LuaFunction<Ret(Args...)> &f = *static_cast<LuaFunction<Ret(Args...)> *>(lua_touserdata(L, lua_upvalueindex(1)));
-            std::cout << "fn object: " << lua_tostring(L, lua_upvalueindex(2)) << std::endl;
             // check number of arguments
             if (lua_gettop(L) != sizeof...(Args))
             {
                 std::cerr << "Error: Invalid number of arguments expected " << sizeof...(Args) << ", got " << lua_gettop(L) << std::endl;
                 return 0;
             }
-            std::cout << "Arg count: " << lua_gettop(L) << std::endl;
             // get the function name
             std::string name = lua_tostring(L, lua_upvalueindex(2));
             // check if the function name is valid
@@ -81,22 +79,14 @@ struct LuaFunction<Ret(Args...)>
                 std::cerr << "Error: Invalid/Missing function name" << std::endl;
                 return 0;
             }
-            std::cout << "Name: " << name << std::endl;
             // get the arguments from the stack
             std::tuple<Args...> args;
             int i = 1;
             std::apply([&](auto &... args) { ((args = LuaGet<Args>(L, -++i)), ...); }, args);
-            std::cout << "Args: " << i << std::endl;
-            // print the types of each argument
-            for (int i = 0; i < sizeof...(Args) + 1; ++i)
-            {
-                std::cout << "Arg" << i << ": " << lua_typename(L, lua_type(L, i)) << std::endl;
-            }
             // call the function
             Ret ret = std::apply([&](auto &&... args){
                 return f.func(args...);
             }, args);
-            std::cout << "Ret: " << ret << std::endl;
             // push the return value to the stack
             LuaSet(L, -1, ret);
             // return the number of return values
