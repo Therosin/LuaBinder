@@ -153,7 +153,19 @@ bool LuaTuple(lua_State *L, int index, std::tuple<Args...> &&value)
 template <typename T>
 void LuaPush(lua_State *L, T &&t)
 {
-    lua_pushnumber(L, t);
+    lua_pushlightuserdata(L, (void *)&&t);
+}
+
+template <typename T>
+void LuaPush(lua_State *L, T &t)
+{
+    lua_pushlightuserdata(L, (void *)&t);
+}
+
+template <typename T>
+void LuaPush(lua_State *L, T *t)
+{
+    lua_pushlightuserdata(L, (void *)t);
 }
 
 template <>

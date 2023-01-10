@@ -22,22 +22,6 @@ template <typename Sig>
 struct LuaFunction;
 
 template <typename Ret, typename... Args>
-void LuaPush(lua_State *L, LuaFunction<Ret(Args...)> &f)
-{
-  f.Register(L, "");
-}
-template <typename Ret, typename... Args>
-void LuaPush(lua_State *L, LuaFunction<Ret(Args...)> *f)
-{
-  f->Register(L, "");
-}
-template <typename Ret, typename... Args>
-void LuaPush(lua_State *L, LuaFunction<Ret(Args...)> &&f)
-{
-  f.Register(L, "");
-}
-
-template <typename Ret, typename... Args>
 struct LuaFunction<Ret(Args...)>
 {
   std::function<Ret(Args...)> func;
