@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        ".env.example": "properties",
+        ".busted": "lua",
+        ".luacheckrc": "lua",
+        "iostream": "cpp"
+    }
+}

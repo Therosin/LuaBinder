@@ -28,6 +28,21 @@ extern "C"
 #include "lauxlib.h"
 }
 
+
+// print the global table
+void LuaPrintGlobals(lua_State *L)
+{
+    std::cout << "Globals: " << std::endl;
+    lua_getglobal(L, "_G");
+    lua_pushnil(L);
+    while (lua_next(L, -2))
+    {
+        std::cout << "  " << lua_tostring(L, -2) << " : " << lua_typename(L, lua_type(L, -1)) << std::endl;
+        lua_pop(L, 1);
+    }
+}
+
+
 // ─── LuaGet ──────────────────────────────────────────────────────────────────
 
 template <typename T>
@@ -87,6 +102,14 @@ bool LuaSet(lua_State *L, int index, T &&value);
 
 template <>
 bool LuaSet<int>(lua_State *L, int index, int &&value)
+{
+    lua_pushinteger(L, value);
+    return true;
+}
+
+// LuaSet<int &>(struct lua_State *,int,int &)
+template <>
+bool LuaSet<int &>(lua_State *L, int index, int &value)
 {
     lua_pushinteger(L, value);
     return true;
@@ -175,6 +198,7 @@ void LuaPush<int>(lua_State *L, int &&t)
 }
 
 template <>
+
 void LuaPush<double>(lua_State *L, double &&t)
 {
     lua_pushnumber(L, t);
