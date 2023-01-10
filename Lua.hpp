@@ -20,6 +20,7 @@
 #include <iostream>
 #include <tuple>
 #include <map>
+#include <cstring>
 
 extern "C"
 {
@@ -27,7 +28,6 @@ extern "C"
 #include "lualib.h"
 #include "lauxlib.h"
 }
-
 
 // print the global table
 void LuaPrintGlobals(lua_State *L)
@@ -42,9 +42,172 @@ void LuaPrintGlobals(lua_State *L)
     }
 }
 
+// ─── LuaGet ────────────────────────────────────────────────────────────────────
+
+// lua_get
+// get values from the lua stack
+template <typename T>
+T lua_get(lua_State *L, int index);
+
+// lua_get for int
+template <>
+int lua_get<int>(lua_State *L, int index)
+{
+    lua_Integer i = luaL_checkinteger(L, index + 1);
+    return static_cast<int>(i);
+}
+
+// lua_get for double
+template <>
+double lua_get<double>(lua_State *L, int index)
+{
+    return luaL_checknumber(L, index + 1);
+}
+
+// lua_get for bool
+template <>
+bool lua_get<bool>(lua_State *L, int index)
+{
+    return lua_toboolean(L, index + 1);
+}
+
+// lua_get for std::string
+template <>
+std::string lua_get<std::string>(lua_State *L, int index)
+{
+    return std::string(luaL_checkstring(L, index + 1));
+}
+
+// lua_get for std::vector
+template <typename T>
+std::vector<T> lua_get(lua_State *L, int index)
+{
+    std::vector<T> ret;
+    if (!lua_istable(L, index + 1))
+    {
+        std::cout << "Error: Not a table" << std::endl;
+        return ret;
+    }
+    lua_pushnil(L);
+    while (lua_next(L, index + 1))
+    {
+        ret.push_back(lua_get<T>(L, -1));
+        lua_pop(L, 1);
+    }
+    return ret;
+}
+
+// lua_get for std::map
+template <typename T, typename U>
+std::map<T, U> lua_get(lua_State *L, int index)
+{
+    std::map<T, U> ret;
+    if (!lua_istable(L, index + 1))
+    {
+        std::cout << "Error: Not a table" << std::endl;
+        return ret;
+    }
+    lua_pushnil(L);
+    while (lua_next(L, index + 1))
+    {
+        ret[lua_get<T>(L, -2)] = lua_get<U>(L, -1);
+        lua_pop(L, 1);
+    }
+    return ret;
+}
+
+// ─── LuaPush ──────────────────────────────────────────────────────────────────
+
+// lua_push
+// push values to the lua stack
+template <typename T>
+void lua_push(lua_State *L, const T &value);
+
+// lua_push for int
+template <>
+void lua_push<int>(lua_State *L, const int &value)
+{
+    lua_pushinteger(L, value);
+}
+
+// lua_push for double
+template <>
+void lua_push<double>(lua_State *L, const double &value)
+{
+    lua_pushnumber(L, value);
+}
+
+// lua_push for bool
+template <>
+void lua_push<bool>(lua_State *L, const bool &value)
+{
+    lua_pushboolean(L, value);
+}
+
+// lua_push for std::string
+template <>
+void lua_push<std::string>(lua_State *L, const std::string &value)
+{
+    lua_pushstring(L, value.c_str());
+}
+
+// lua_push for char&
+template <>
+void lua_push(lua_State *L, const char &value)
+{
+    char buffer[2];
+    buffer[0] = value;
+    buffer[1] = '\0';
+    lua_pushstring(L, buffer);
+}
+
+// lua_push for std::vector
+template <typename T>
+void lua_push(lua_State *L, const std::vector<T> &value)
+{
+    lua_newtable(L);
+    for (int i = 0; i < value.size(); i++)
+    {
+        lua_push<T>(L, value[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+}
+
+// lua_push for std::map
+template <typename T, typename U>
+void lua_push(lua_State *L, const std::map<T, U> &value)
+{
+    lua_newtable(L);
+    for (auto &i : value)
+    {
+        lua_push<T>(L, i.first);
+        lua_push<U>(L, i.second);
+        lua_settable(L, -3);
+    }
+}
+
+// ─── LuaCall ──────────────────────────────────────────────────────────────────
+// Used to call a function in a lua script
+
+template <typename T>
+T LuaCall(lua_State *L, const std::string &name, const std::vector<T> &args)
+{
+    lua_getglobal(L, name.c_str());
+    for (const auto &arg : args)
+        lua_push<T>(L, arg);
+    int e = lua_pcall(L, args.size(), 1, 0);
+    if (e)
+    {
+        std::cout << "Error: " << lua_tostring(L, -1) << std::endl;
+        lua_pop(L, 1);
+        return T();
+    }
+    T ret;
+    lua_pop(L, ret);
+    return ret;
+}
 
 // ─── LuaGet ──────────────────────────────────────────────────────────────────
-
 template <typename T>
 T LuaGet(lua_State *L, int index);
 

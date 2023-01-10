@@ -83,14 +83,26 @@ struct LuaFunction<Ret(Args...)>
             std::tuple<Args...> args;
             int i = 1;
             std::apply([&](auto &... args) { ((args = LuaGet<Args>(L, -++i)), ...); }, args);
-            // call the function
-            Ret ret = std::apply([&](auto &&... args){
-                return f.func(args...);
-            }, args);
-            // push the return value to the stack
-            LuaSet(L, -1, ret);
-            // return the number of return values
-            return 1; },
+            if constexpr (!std::is_void<Ret>::value)
+            {
+              // call the function
+              Ret ret = std::apply([&](auto &&... args){
+                  return f.func(args...);
+              }, args);
+              // push the return value to the stack
+              LuaSet(L, -1, ret);
+              // return the number of return values
+              return 1;
+            } else {
+              // call the function
+              std::apply([&](auto &&... args){
+                  return f.func(args...);
+              }, args);
+              // push nil to the stack
+              lua_pushnil(L);
+              // return the number of return values
+              return 0;
+            }},
         2);
     // set the function name as the key
     lua_setglobal(L, name);
@@ -282,6 +294,12 @@ public:
   template <typename T>
   void SetList(const std::string &name, const std::vector<T> &list);
 
+  template <typename T, typename U>
+  std::map<T, U> GetMap(const std::string &name);
+
+  template <typename T, typename U>
+  void SetMap(const std::string &name, const std::map<T, U> &map);
+
   // Get the last error from lua
   std::string GetError()
   {
@@ -325,32 +343,66 @@ void LuaScript::printError(const std::string &variableName, const std::string &r
   std::cout << "Error: can't get [" << variableName << "]. " << reason << std::endl;
 }
 
-template <>
-inline bool LuaScript::lua_get<bool>(const std::string &variableName)
+std::vector<int> LuaScript::getIntVector(const std::string &name)
 {
-  return (bool)lua_toboolean(L, -1);
-}
-
-template <>
-inline float LuaScript::lua_get<float>(const std::string &variableName)
-{
-  if (!lua_isnumber(L, -1))
-  {
-    printError(variableName, "Not a number");
+  std::vector<int> v;
+  lua_gettostack(name.c_str());
+  if (lua_isnil(L, -1))
+  { // array is not found
+    return std::vector<int>();
   }
-  return (float)lua_tonumber(L, -1);
+  lua_pushnil(L);
+  while (lua_next(L, -2))
+  {
+    v.push_back((int)lua_tonumber(L, -1));
+    lua_pop(L, 1);
+  }
+  clean();
+  return v;
+}
+
+std::vector<std::string> LuaScript::getTableKeys(const std::string &name)
+{
+  std::string code =
+      "function getKeys(name) "
+      "s = \"\""
+      "for k, v in pairs(_G[name]) do "
+      "    s = s..k..\",\" "
+      "    end "
+      "return s "
+      "end"; // function for getting table keys
+  luaL_loadstring(L,
+                  code.c_str()); // execute code
+  lua_pcall(L, 0, 0, 0);
+  lua_getglobal(L, "getKeys"); // get function
+  lua_pushstring(L, name.c_str());
+  lua_pcall(L, 1, 1, 0); // execute function
+  std::string test = lua_tostring(L, -1);
+  std::vector<std::string> strings;
+  std::string temp = "";
+  for (unsigned int i = 0; i < test.size(); i++)
+  {
+    if (test.at(i) != ',')
+    {
+      temp += test.at(i);
+    }
+    else
+    {
+      strings.push_back(temp);
+      temp = "";
+    }
+  }
+  clean();
+  return strings;
 }
 
 template <>
-inline int LuaScript::lua_get<int>(const std::string &variableName)
+inline std::string LuaScript::lua_getdefault<std::string>()
 {
-  if (!lua_isnumber(L, -1))
-  {
-    printError(variableName, "Not a number");
-  }
-  return (int)lua_tonumber(L, -1);
+  return "null";
 }
 
+// lua_get for string
 template <>
 inline std::string LuaScript::lua_get<std::string>(const std::string &variableName)
 {
@@ -366,10 +418,33 @@ inline std::string LuaScript::lua_get<std::string>(const std::string &variableNa
   return s;
 }
 
+// lua_get for int
 template <>
-inline std::string LuaScript::lua_getdefault<std::string>()
+inline int LuaScript::lua_get<int>(const std::string &variableName)
 {
-  return "null";
+  if (!lua_isnumber(L, -1))
+  {
+    printError(variableName, "Not a number");
+  }
+  return (int)lua_tonumber(L, -1);
+}
+
+// lua_get for float
+template <>
+inline float LuaScript::lua_get<float>(const std::string &variableName)
+{
+  if (!lua_isnumber(L, -1))
+  {
+    printError(variableName, "Not a number");
+  }
+  return (float)lua_tonumber(L, -1);
+}
+
+// lua_get for bool
+template <>
+inline bool LuaScript::lua_get<bool>(const std::string &variableName)
+{
+  return (bool)lua_toboolean(L, -1);
 }
 
 // template GetList
@@ -426,102 +501,90 @@ void LuaScript::SetList(const std::string &name, const std::vector<T> &list)
   lua_newtable(L);
   for (size_t i = 0; i < list.size(); i++)
   {
-    lua_push<T>(name, list[i]);
-    lua_rawseti(L, -2, i + 1);
+    lua_pushnumber(L, (int)i + 1);
+    lua_push(L,list[i]);
+    lua_settable(L, -3);
+  }
+  lua_setglobal(L, name.c_str());
+}
+
+// template GetMap
+// Gets a Map of values of type T in the lua state
+template <typename T, typename U>
+std::map<T, U> LuaScript::GetMap(const std::string &name)
+{
+  std::map<T, U> result;
+  if (!L)
+  {
+    printError(name, "No State");
+    return result;
+  }
+
+  if (lua_gettostack(name))
+  { // variable succesfully on top of stack
+    if (lua_istable(L, -1))
+    {                 // table on top of stack
+      lua_pushnil(L); // nil key on top of stack
+      while (lua_next(L, -2) != 0)
+      { // key and value on top of stack
+        if (lua_is<T>(L, -2) && lua_is<U>(L, -1))
+        { // value is of type T
+          result[LuaGet<T>(L, -3)] = LuaGet<U>(L, -2);
+        }
+        else
+        {
+          // skip invalid value
+          break;
+        }
+        lua_pop(L, 1); // remove value, keep key for next iteration
+      }
+    }
+    else
+    {
+      printError(name, "is not a table");
+    }
+  }
+  clean();
+  return result;
+}
+
+// template SetMap
+// Sets a Map of values of type T in the lua state
+template <typename T, typename U>
+void LuaScript::SetMap(const std::string &name, const std::map<T, U> &map)
+{
+  if (!L)
+  {
+    printError(name, "No State");
+    return;
+  }
+
+  lua_newtable(L);
+  for (auto it = map.begin(); it != map.end(); it++)
+  {
+    lua_push(L, it->first);
+    lua_push(L, it->second);
+    lua_settable(L, -3);
   }
   lua_setglobal(L, name.c_str());
 }
 
 // ─── LuaTable ────────────────────────────────────────────────────────────────
 
-class LuaTable
-{
-private:
-  LuaScript *luaScript;
-  std::string name;
+// class LuaTable
+// {
+//   LuaTable(LuaScript *luaScript, const std::string &name);
 
-public:
-  LuaTable(LuaScript *luaScript, const std::string &name);
+//   bool isValid() const;
 
-  bool isValid() const;
+//   std::vector<std::string> getKeys() const;
 
-  std::vector<std::string> getKeys() const;
+//   template <typename T>
+//   T get(const std::string &key) const;
+// };
 
-  template <typename T>
-  T get(const std::string &key) const;
-};
-
-LuaTable::LuaTable(LuaScript *luaScript, const std::string &tableName)
-{
-  this->luaScript = luaScript;
-  this->name = tableName;
-}
-
-bool LuaTable::isValid() const
-{
-  return luaScript->getTableKeys(name).size() > 0;
-}
-
-std::vector<int> LuaScript::getIntVector(const std::string &name)
-{
-  std::vector<int> v;
-  lua_gettostack(name.c_str());
-  if (lua_isnil(L, -1))
-  { // array is not found
-    return std::vector<int>();
-  }
-  lua_pushnil(L);
-  while (lua_next(L, -2))
-  {
-    v.push_back((int)lua_tonumber(L, -1));
-    lua_pop(L, 1);
-  }
-  clean();
-  return v;
-}
-
-std::vector<std::string> LuaScript::getTableKeys(const std::string &name)
-{
-  std::string code =
-      "function getKeys(name) "
-      "s = \"\""
-      "for k, v in pairs(_G[name]) do "
-      "    s = s..k..\",\" "
-      "    end "
-      "return s "
-      "end"; // function for getting table keys
-  luaL_loadstring(L,
-                  code.c_str()); // execute code
-  lua_pcall(L, 0, 0, 0);
-  lua_getglobal(L, "getKeys"); // get function
-  lua_pushstring(L, name.c_str());
-  lua_pcall(L, 1, 1, 0); // execute function
-  std::string test = lua_tostring(L, -1);
-  std::vector<std::string> strings;
-  std::string temp = "";
-  for (unsigned int i = 0; i < test.size(); i++)
-  {
-    if (test.at(i) != ',')
-    {
-      temp += test.at(i);
-    }
-    else
-    {
-      strings.push_back(temp);
-      temp = "";
-    }
-  }
-  clean();
-  return strings;
-}
-
-std::vector<std::string> LuaTable::getKeys() const
-{
-  return luaScript->getTableKeys(name);
-}
-
-template <typename T>
-T LuaTable::get(const std::string &key) const
-{
-  return luaScript->lua_get<T>(name + "." + key);
-}
+// LuaTable::LuaTable(LuaScript *luaScript, const std::string &tableName)
+// {
+//   this->luaScript = luaScript;
+//   this->name = tableName;
+// }
