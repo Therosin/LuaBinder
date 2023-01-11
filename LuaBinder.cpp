@@ -28,7 +28,6 @@ int main(int argc, char *argv[])
     LuaFunction<void(std::string)> luaLog(log);
     luaLog.Register(Script->State(), "Log");
 
-    system("pause");
     if (!Script->runString("Log('hello world Result: ' .. add(10, 20)); testList = { 'Item1', 'Item2', 'Item3' }; testMap = { key1 = 'Value1', key2 = 'Value2', key3 = 'Value3' };"))
     {
         std::cout << "failed to load string" << std::endl;
@@ -39,6 +38,8 @@ int main(int argc, char *argv[])
         }
         system("pause");
     }
+
+    std::cout << "Lua Stack:" << std::endl;
 
     std::vector<std::string> testItems = Script->GetList<std::string>("testList");
     std::cout << "Test List: " << std::endl;
