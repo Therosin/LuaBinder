@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     LuaFunction<void(std::string)> luaLog(log);
     luaLog.Register(Script->State(), "Log");
 
-    if (!Script->runString("Log('hello world Result: ' .. add(10, 20)); testList = { 'Item1', 'Item2', 'Item3' }; testMap = { key1 = 'Value1', key2 = 'Value2', key3 = 'Value3' };"))
+    if (!Script->runString("testList = { 'Item1', 'Item2', 'Item3' }; testMap = { key1 = 'Value1', key2 = 'Value2', key3 = 'Value3' }; Log('hello world Result: ' .. add(10, 20))"))
     {
         std::cout << "failed to load string" << std::endl;
         std::string error = Script->GetError();
@@ -39,8 +39,6 @@ int main(int argc, char *argv[])
         system("pause");
     }
 
-    std::cout << "Lua Stack:" << std::endl;
-
     std::vector<std::string> testItems = Script->GetList<std::string>("testList");
     std::cout << "Test List: " << std::endl;
     for (auto &item : testItems)
@@ -49,6 +47,7 @@ int main(int argc, char *argv[])
     }
 
     testItems[2] = "Item3-2";
+
     Script->SetList<std::string>("testList", testItems);
 
     std::cout << "Test List: " << std::endl;
