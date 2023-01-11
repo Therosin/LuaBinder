@@ -99,7 +99,7 @@ struct LuaFunction<Ret(Args...)>
                   return f.func(args...);
               }, args);
               // push the return value to the stack
-              lua_set(L, -1, ret);
+              lua_set(L, ret, -1);
               // return the number of return values
               return 1;
             } else {
