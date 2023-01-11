@@ -440,9 +440,10 @@ if (!L)
   lua_newtable(L);
   for (size_t i = 0; i < list.size(); i++)
   {
+
     lua_set(L, list[i]);
+    lua_rawseti(L, -2, i + 1);
     LuaPrintStack(L);
-    lua_rawseti(L, -1, i + 1);
   }
   lua_setglobal(L, name.c_str());
 }
