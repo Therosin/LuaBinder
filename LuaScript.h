@@ -90,7 +90,7 @@ struct LuaFunction<Ret(Args...)>
             }
             // get the arguments from the stack
             std::tuple<Args...> args;
-            int i = 1;
+            int i = 0;
             std::apply([&](auto &... args) { ((args = lua_get<Args>(L, -++i)), ...); }, args);
             if constexpr (!std::is_void<Ret>::value)
             {
