@@ -306,7 +306,12 @@ public:
   // Get the last error from lua
   std::string GetError()
   {
-    return lua_tostring(L, -1);
+    if (!lua_isstring(L, -1))
+      return {};
+ 
+    std::string err = lua_tostring(L, -1);
+    lua_pop(L, 1);
+    return err;
   }
 
 private:
@@ -343,7 +348,7 @@ LuaScript::~LuaScript()
 
 void LuaScript::printError(const std::string &variableName, const std::string &reason)
 {
-  std::cout << "Error: can't get [" << variableName << "]. " << reason << std::endl;
+  std::cout << "Error: can't get [" << variableName << "] > " << reason << std::endl;
 }
 
 std::vector<std::string> LuaScript::getTableKeys(const std::string &name)
@@ -402,7 +407,7 @@ std::vector<T> LuaScript::GetList(const std::string &name)
       { // key and value on top of stack
         if (lua_is<T>(L, -1))
         { // value is of type T
-          result.push_back(global_get<T>(name));
+          result.push_back(lua_get<T>(L, -1));
         }
         else
         {
@@ -426,7 +431,7 @@ std::vector<T> LuaScript::GetList(const std::string &name)
 template <typename T>
 void LuaScript::SetList(const std::string &name, const std::vector<T> &list)
 {
-  if (!L)
+if (!L)
   {
     printError(name, "No State");
     return;
@@ -435,9 +440,9 @@ void LuaScript::SetList(const std::string &name, const std::vector<T> &list)
   lua_newtable(L);
   for (size_t i = 0; i < list.size(); i++)
   {
-    lua_pushnumber(L, (int)i + 1);
-    lua_push(L,list[i]);
-    lua_settable(L, -3);
+    lua_set(L, list[i]);
+    LuaPrintStack(L);
+    lua_rawseti(L, -1, i + 1);
   }
   lua_setglobal(L, name.c_str());
 }
