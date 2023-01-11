@@ -57,22 +57,22 @@ int main(int argc, char *argv[])
         std::cout << "  " << item << std::endl;
     }
 
-    std::map<std::string, std::string> testMap = Script->GetMap<std::string, std::string>("testMap");
-    std::cout << "Test Map: " << std::endl;
-    for (auto &item : testMap)
-    {
-        std::cout << "  " << item.first << " = " << item.second << std::endl;
-    }
+    // std::map<std::string, std::string> testMap = Script->GetMap<std::string, std::string>("testMap");
+    // std::cout << "Test Map: " << std::endl;
+    // for (auto &item : testMap)
+    // {
+    //     std::cout << "  " << item.first << " = " << item.second << std::endl;
+    // }
 
-    testMap["key3"] = "Value3-2";
-    Script->SetMap<std::string, std::string>("testMap", testMap);
+    // testMap["key3"] = "Value3-2";
+    // Script->SetMap<std::string, std::string>("testMap", testMap);
 
-    std::cout << "Test Map: " << std::endl;
-    std::map<std::string, std::string> testMap2 = Script->GetMap<std::string, std::string>("testMap");
-    for (auto &item : testMap2)
-    {
-        std::cout << "  " << item.first << " = " << item.second << std::endl;
-    }
+    // std::cout << "Test Map: " << std::endl;
+    // std::map<std::string, std::string> testMap2 = Script->GetMap<std::string, std::string>("testMap");
+    // for (auto &item : testMap2)
+    // {
+    //     std::cout << "  " << item.first << " = " << item.second << std::endl;
+    // }
 
     system("pause");
     return 0;
