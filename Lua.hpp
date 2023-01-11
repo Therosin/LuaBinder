@@ -1,19 +1,3 @@
-// Copyright (C) 2023 Theros < MisModding | SvalTek >
-//
-// This file is part of EzConsole.
-//
-// EzConsole is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// EzConsole is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with EzConsole.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 #include <functional>
 #include <string>
@@ -48,182 +32,39 @@ void LuaPrintStack(lua_State *L, int start = 0, int end = 0)
     int top = lua_gettop(L);
     if (end == 0)
     {
-        end = top;
+        end = -top;
     }
-    std::cout << "Lua Stack (" << -top << ") Entries" << std::endl;
+    std::cout << "Lua Stack (" << top << ") Entries" << std::endl;
     std::cout << "Lua Stack Start: " << start << " End: " << end << std::endl;
     // we are counting -1, -2, -3, -4, -5, ...
     for (level = start; level >= end; level--)
     {
+        std::cout << "  [" << level << "]";
         int t = lua_type(L, level);
-        std::string lua_type_name;
-        std::string lua_value;
-        // if t within 0-9
-        if (t >= 0 && t <= 9)
-        {
-            lua_type_name = lua_typename(L, t);
-            lua_value = lua_tostring(L, level);
+        switch(t)
+         {
+            case LUA_TSTRING:
+                std::cout << " type: string     value: " << lua_tostring(L, level) << std::endl;
+                break;
+            case LUA_TBOOLEAN:
+                std::cout << " type: boolean    value: " << lua_tostring(L, level) << std::endl;
+                break;
+            case LUA_TNUMBER:
+                std::cout << " type: number     value: " << lua_tostring(L, level) << std::endl;
+                break;
+            case LUA_TTABLE:
+                std::cout << " type: table" << std::endl;
+                break;
+            case LUA_TFUNCTION:
+                std::cout << " type: function" << std::endl;
+                break;
+            case LUA_TUSERDATA:
+                std::cout << " type: userdata" << std::endl;
+                break;
+            default:
+                std::cout << " type: unknown" << std::endl;
         }
-        else
-        {
-            lua_type_name = "unknown";
-            lua_value = "unknown";
-        }
-        std::cout << "  [" << level << "]"
-                  << " type: " << lua_type_name << " value: " << lua_value << std::endl;
     }
-}
-
-// ─── LuaGet ────────────────────────────────────────────────────────────────────
-
-// lua_get
-// get values from the lua stack
-template <typename T>
-T lua_get(lua_State *L, int level = -1);
-
-// lua_get for std::string
-template <>
-std::string lua_get<std::string>(lua_State *L, int level)
-{
-    std::string s = "null";
-    if (!lua_isstring(L, level))
-    {
-        std::cout << "lua_get<std::string>[" << level << "]: not a string" << std::endl;
-    }
-    return std::string(lua_tostring(L, level));
-}
-
-// lua_get for int
-template <>
-int lua_get<int>(lua_State *L, int level)
-{
-    if (!lua_isnumber(L, level))
-    {
-        std::cout << "lua_get<int>[" << level << "]: not a number" << std::endl;
-        return 0;
-    }
-    return static_cast<int>(lua_tonumber(L, level));
-}
-
-// lua_get for double
-template <>
-double lua_get<double>(lua_State *L, int level)
-{
-    if (!lua_isnumber(L, level))
-    {
-        std::cout << "lua_get<double>[" << level << "]: not a number" << std::endl;
-        return 0.0;
-    }
-    return static_cast<double>(lua_tonumber(L, level));
-}
-
-// lua_get for float
-template <>
-float lua_get<float>(lua_State *L, int level)
-{
-    if (!lua_isnumber(L, level))
-    {
-        std::cout << "lua_get<float>[" << level << "]: not a number" << std::endl;
-        return 0.0f;
-    }
-    return static_cast<float>(lua_tonumber(L, level));
-}
-
-// lua_get for bool
-template <>
-bool lua_get<bool>(lua_State *L, int level)
-{
-    if (!lua_isboolean(L, level))
-    {
-        std::cout << "lua_get<bool>[" << level << "]: not a bool" << std::endl;
-        return false;
-    }
-    return lua_toboolean(L, level);
-}
-
-// lua_get for char
-template <>
-char lua_get<char>(lua_State *L, int level)
-{
-    char c = 0;
-    if (lua_isstring(L, level))
-    {
-        std::string s = std::string(lua_tostring(L, level));
-        c = s[0];
-    }
-    else
-    {
-        std::cout << "lua_get<char>[" << level << "]: not a string" << std::endl;
-    }
-    return c;
-}
-
-// ─── lua_set ──────────────────────────────────────────────────────────────────
-
-template <typename T>
-bool lua_set(lua_State *L, int level, T &&value);
-
-template <typename T>
-bool lua_set(lua_State *L, int level, T &&value)
-{
-    std::cout << "lua_set: not implemented for type: " << typeid(T).name() << std::endl;
-    return false;
-}
-
-template <>
-bool lua_set<int>(lua_State *L, int level, int &&value)
-{
-    lua_pushinteger(L, value);
-    return true;
-}
-
-// lua_set<int &>(struct lua_State *,int,int &)
-template <>
-bool lua_set<int &>(lua_State *L, int level, int &value)
-{
-    lua_pushinteger(L, value);
-    return true;
-}
-
-template <>
-bool lua_set<double>(lua_State *L, int level, double &&value)
-{
-    lua_pushnumber(L, value);
-    return true;
-}
-
-template <>
-bool lua_set<std::string>(lua_State *L, int level, std::string &&value)
-{
-    lua_pushstring(L, value.c_str());
-    return true;
-}
-
-template <>
-bool lua_set<bool>(lua_State *L, int level, bool &&value)
-{
-    lua_pushboolean(L, value);
-    return true;
-}
-
-template <>
-bool lua_set<char>(lua_State *L, int level, char &&value)
-{
-    lua_pushstring(L, &value);
-    return true;
-}
-
-template <>
-bool lua_set<std::vector<int>>(lua_State *L, int level, std::vector<int> &&vec)
-{
-    lua_newtable(L);
-    for (int i = 0; i < vec.size(); i++)
-    {
-        lua_pushinteger(L, i + 1);
-        lua_pushinteger(L, vec[i]);
-        lua_settable(L, -3);
-    }
-    return true;
 }
 
 // ─── LuaPush ──────────────────────────────────────────────────────────────────
@@ -275,80 +116,6 @@ bool lua_push(lua_State *L, T *value)
     return lua_pushdefault(L, value);
 }
 
-// lua_push for int
-template <>
-bool lua_push<int>(lua_State *L, int &value)
-{
-    lua_pushinteger(L, value);
-    return true;
-}
-
-// lua_push for double
-template <>
-bool lua_push<double>(lua_State *L, double &value)
-{
-    lua_pushnumber(L, value);
-    return true;
-}
-
-// lua_push for bool
-template <>
-bool lua_push<bool>(lua_State *L, bool &value)
-{
-    lua_pushboolean(L, value);
-    return true;
-}
-
-// lua_push for std::string
-template <>
-bool lua_push<std::string>(lua_State *L, std::string &value)
-{
-    lua_pushstring(L, value.c_str());
-
-    return true;
-}
-
-// lua_push for char&
-template <>
-bool lua_push<char>(lua_State *L, char &value)
-{
-    char buffer[2];
-    buffer[0] = value;
-    buffer[1] = '\0';
-    lua_pushstring(L, buffer);
-
-    return true;
-}
-
-// lua_push for std::vector
-template <typename T>
-bool lua_push(lua_State *L, std::vector<T> &value)
-{
-    lua_newtable(L);
-    for (int i = 0; i < value.size(); i++)
-    {
-        lua_push<T>(L, value[i]);
-        lua_rawseti(L, -2, i + 1);
-    }
-
-    return true;
-}
-
-// lua_push for std::map
-template <typename T, typename U>
-bool lua_push(lua_State *L, std::map<T, U> &value)
-{
-    lua_newtable(L);
-    for (auto &i : value)
-    {
-        lua_push<T>(L, i.first);
-        lua_push<U>(L, i.second);
-        lua_settable(L, -3);
-    }
-
-    return true;
-}
-
 // ─── LuaCall ──────────────────────────────────────────────────────────────────
 // Used to call a function in a lua script
 
@@ -370,12 +137,480 @@ T LuaCall(lua_State *L, const std::string &name, const std::vector<T> &args)
     return ret;
 }
 
+// ─── LuaStack ────────────────────────────────────────────────────────────────
+
+template<typename T>
+struct LuaStack;
+
+//------------------------------------------------------------------------------
+/**
+  Receive the lua_State* as an argument.
+  */
+template <>
+struct LuaStack <lua_State*>
+{
+    static lua_State* get (lua_State* L, int)
+    {
+        return L;
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  Push a lua_CFunction.
+  */
+template <>
+struct LuaStack <lua_CFunction>
+{
+    static void push (lua_State* L, lua_CFunction f)
+    {
+        lua_pushcfunction (L, f);
+    }
+
+    static lua_CFunction get (lua_State* L, int index)
+    {
+        return lua_tocfunction (L, index);
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `int`.
+  */
+template <>
+struct LuaStack <int>
+{
+    static inline void push (lua_State* L, int value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline int get (lua_State* L, int index)
+    {
+        return static_cast <int> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <int const&>
+{
+    static inline void push (lua_State* L, int value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline int get (lua_State* L, int index)
+    {
+        return static_cast <int > (luaL_checknumber (L, index));
+    }
+};
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `unsigned int`.
+  */
+template <>
+struct LuaStack <unsigned int>
+{
+    static inline void push (lua_State* L, unsigned int value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline unsigned int get (lua_State* L, int index)
+    {
+        return static_cast <unsigned int> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <unsigned int const&>
+{
+    static inline void push (lua_State* L, unsigned int value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline unsigned int get (lua_State* L, int index)
+    {
+        return static_cast <unsigned int > (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `unsigned char`.
+  */
+template <>
+struct LuaStack <unsigned char>
+{
+    static inline void push (lua_State* L, unsigned char value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline unsigned char get (lua_State* L, int index)
+    {
+        return static_cast <unsigned char> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <unsigned char const&>
+{
+    static inline void push (lua_State* L, unsigned char value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline unsigned char get (lua_State* L, int index)
+    {
+        return static_cast <unsigned char> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `short`.
+  */
+template <>
+struct LuaStack <short>
+{
+    static inline void push (lua_State* L, short value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline short get (lua_State* L, int index)
+    {
+        return static_cast <short> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <short const&>
+{
+    static inline void push (lua_State* L, short value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline short get (lua_State* L, int index)
+    {
+        return static_cast <short> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `unsigned short`.
+  */
+template <>
+struct LuaStack <unsigned short>
+{
+    static inline void push (lua_State* L, unsigned short value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline unsigned short get (lua_State* L, int index)
+    {
+        return static_cast <unsigned short> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <unsigned short const&>
+{
+    static inline void push (lua_State* L, unsigned short value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline unsigned short get (lua_State* L, int index)
+    {
+        return static_cast <unsigned short> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `long`.
+  */
+template <>
+struct LuaStack <long>
+{
+    static inline void push (lua_State* L, long value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline long get (lua_State* L, int index)
+    {
+        return static_cast <long> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <long const&>
+{
+    static inline void push (lua_State* L, long value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline long get (lua_State* L, int index)
+    {
+        return static_cast <long> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `unsigned long`.
+  */
+template <>
+struct LuaStack <unsigned long>
+{
+    static inline void push (lua_State* L, unsigned long value)
+    {
+        lua_pushinteger (L, static_cast <lua_Integer> (value));
+    }
+
+    static inline unsigned long get (lua_State* L, int index)
+    {
+        return static_cast <unsigned long> (luaL_checkinteger (L, index));
+    }
+};
+
+template <>
+struct LuaStack <unsigned long const&>
+{
+    static inline void push (lua_State* L, unsigned long value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline unsigned long get (lua_State* L, int index)
+    {
+        return static_cast <unsigned long> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `float`.
+  */
+template <>
+struct LuaStack <float>
+{
+    static inline void push (lua_State* L, float value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline float get (lua_State* L, int index)
+    {
+        return static_cast <float> (luaL_checknumber (L, index));
+    }
+};
+
+template <>
+struct LuaStack <float const&>
+{
+    static inline void push (lua_State* L, float value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline float get (lua_State* L, int index)
+    {
+        return static_cast <float> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `double`.
+  */
+template <> struct LuaStack <double>
+{
+    static inline void push (lua_State* L, double value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline double get (lua_State* L, int index)
+    {
+        return static_cast <double> (luaL_checknumber (L, index));
+    }
+};
+
+template <> struct LuaStack <double const&>
+{
+    static inline void push (lua_State* L, double value)
+    {
+        lua_pushnumber (L, static_cast <lua_Number> (value));
+    }
+
+    static inline double get (lua_State* L, int index)
+    {
+        return static_cast <double> (luaL_checknumber (L, index));
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `bool`.
+  */
+template <>
+struct LuaStack <bool> {
+    static inline void push (lua_State* L, bool value)
+    {
+        lua_pushboolean (L, value ? 1 : 0);
+    }
+
+    static inline bool get (lua_State* L, int index)
+    {
+        return lua_toboolean (L, index) ? true : false;
+    }
+};
+
+template <>
+struct LuaStack <bool const&> {
+    static inline void push (lua_State* L, bool value)
+    {
+        lua_pushboolean (L, value ? 1 : 0);
+    }
+
+    static inline bool get (lua_State* L, int index)
+    {
+        return lua_toboolean (L, index) ? true : false;
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `char`.
+  */
+template <>
+struct LuaStack <char>
+{
+    static inline void push (lua_State* L, char value)
+    {
+        char str [2] = { value, 0 };
+        lua_pushstring (L, str);
+    }
+
+    static inline char get (lua_State* L, int index)
+    {
+        return luaL_checkstring (L, index) [0];
+    }
+};
+
+template <>
+struct LuaStack <char const&>
+{
+    static inline void push (lua_State* L, char value)
+    {
+        char str [2] = { value, 0 };
+        lua_pushstring (L, str);
+    }
+
+    static inline char get (lua_State* L, int index)
+    {
+        return luaL_checkstring (L, index) [0];
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `float`.
+  */
+template <>
+struct LuaStack <char const*>
+{
+    static inline void push (lua_State* L, char const* str)
+    {
+        if (str != 0)
+            lua_pushstring (L, str);
+        else
+            lua_pushnil (L);
+    }
+
+    static inline char const* get (lua_State* L, int index)
+    {
+        return lua_isnil (L, index) ? 0 : luaL_checkstring (L, index);
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `std::string`.
+  */
+template <>
+struct LuaStack <std::string>
+{
+    static inline void push (lua_State* L, std::string const& str)
+    {
+        lua_pushlstring (L, str.c_str (), str.size());
+    }
+
+    static inline std::string get (lua_State* L, int index)
+    {
+        size_t len;
+        const char *str = luaL_checklstring(L, index, &len);
+        return std::string (str, len);
+    }
+};
+
+//------------------------------------------------------------------------------
+/**
+  LuaStack specialization for `std::string const&`.
+  */
+template <>
+struct LuaStack <std::string const&>
+{
+    static inline void push (lua_State* L, std::string const& str)
+    {
+        lua_pushlstring (L, str.c_str(), str.size());
+    }
+
+    static inline std::string get (lua_State* L, int index)
+    {
+        size_t len;
+        const char *str = luaL_checklstring(L, index, &len);
+        return std::string (str, len);
+    }
+};
+
+
+// ─── LuaGet ────────────────────────────────────────────────────────────────────
+
+// lua_get
+// get values from the lua stack
+template <typename T>
+T lua_get(lua_State* L, int level = 0)
+{
+    return LuaStack<T>::get(L, level);
+}
+
+// lua_set
+// set a value on the lua stack
+template <typename T>
+bool lua_set(lua_State* L, T value, int level = 0)
+{
+    LuaStack<T>::push(L, value);
+    if (level != 0)
+        lua_replace(L, level);
+    return true;
+}
+
 // ─── LuaTuple ──────────────────────────────────────────────────────────────────
 
 template <typename... Args>
 std::tuple<Args...> LuaTuple(lua_State *L, int level)
 {
-    return std::make_tuple(LuaGet<Args>(L, level)...);
+    return std::make_tuple(lua_get<Args>(L, level)...);
 }
 
 template <typename... Args>
